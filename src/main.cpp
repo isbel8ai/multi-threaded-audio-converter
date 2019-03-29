@@ -1,97 +1,11 @@
 #include <iostream>
-#include <fstream>
-#include <strings.h>
 #include <experimental/filesystem>
 #include <lame/lame.h>
-#include <fstream>
 #include <cstring>
-#include <fstream>
 
 namespace fs = std::experimental::filesystem;
 
-bool lameEncode(const std::string &input) {
-    const size_t IN_SAMPLE_RATE = 44100; // default sample-rate
-    const size_t PCM_SIZE = 8192;
-    const size_t MP3_SIZE = 8192;
-    const size_t LAME_GOOD = 5;
-    int16_t pcm_buffer[PCM_SIZE * 2];
-    unsigned char mp3_buffer[MP3_SIZE];
-    const size_t bytes_per_sample = 2 * sizeof(int16_t); // stereo signal, 16 bits
-    const std::string ext = {"mp3"};
-
-    std::string output(input);
-    output.replace(output.end() - ext.length(), output.end(), ext);
-    std::ifstream wav;
-    std::ofstream mp3;
-
-    wav.exceptions(std::ifstream::failbit);
-    mp3.exceptions(std::ifstream::failbit);
-    try {
-        wav.open(input, std::ios_base::binary);
-        mp3.open(output, std::ios_base::binary);
-    }
-    catch (std::ifstream::failure &e) {
-        std::cerr << "Error opening input/output file: " << std::strerror(errno) << std::endl;
-        return false;
-    }
-
-    lame_t lame = lame_init();
-    lame_set_in_samplerate(lame, IN_SAMPLE_RATE);
-    lame_set_VBR(lame, vbr_default);
-    lame_set_VBR_q(lame, LAME_GOOD);
-
-    if (lame_init_params(lame) < 0) {
-        wav.close();
-        mp3.close();
-        return false;
-    }
-
-    while (wav.good()) {
-        int write = 0;
-        wav.read(reinterpret_cast<char *>(pcm_buffer), sizeof(pcm_buffer));
-        int read = wav.gcount() / bytes_per_sample;
-        if (read == 0)
-            write = lame_encode_flush(lame, mp3_buffer, MP3_SIZE);
-        else
-            write = lame_encode_buffer_interleaved(lame, pcm_buffer, read, mp3_buffer, MP3_SIZE);
-        mp3.write(reinterpret_cast<char *>(mp3_buffer), write);
-    }
-
-    wav.close();
-    mp3.close();
-
-    lame_close(lame);
-    return true;
-}
-
-const unsigned char RIFF_CHUNK_ID[4] = {'R', 'I', 'F', 'F'};
-const unsigned char WAVE_FORMAT_ID[4] = {'W', 'A', 'V', 'E'};
-const unsigned short WAVE_FORMAT_PCM = 1;
-
-typedef struct wav_header_t {
-    // RIFF Header
-    char riff_header[4]; // Contains "RIFF"
-    int wav_size; // Size of the wav portion of the file, which follows the first 8 bytes. File size - 8
-    char wave_header[4]; // Contains "WAVE"
-
-    // Format Header
-    char fmt_header[4]; // Contains "fmt " (includes trailing space)
-    int fmt_chunk_size; // Should be 16 for PCM
-    short audio_format; // Should be 1 for PCM
-    short num_channels;
-    int sample_rate;
-    int byte_rate; // Number of bytes per second. sample_rate * num_channels * Bytes Per Sample
-    short sample_alignment; // num_channels * Bytes Per Sample
-    short bit_depth; // Number of bits per sample
-
-    // Data
-    char data_header[4]; // Contains "data"
-    int data_bytes; // Number of bytes in data. Number of samples * num_channels * sample byte size
-    // uint8_t bytes[]; // Remainder of wave file is bytes
-} wav_header;
-
-
-bool convert(const std::string &pcm_path) {
+bool convert(const std::string &wav_path) {
 
     const int IN_SAMPLE_RATE = 44100;
     const int PCM_SIZE = 8192;
@@ -100,14 +14,14 @@ bool convert(const std::string &pcm_path) {
     const std::string PCM_EXT = "wav";
     const std::string MP3_EXT = "mp3";
 
-    short int pcm_buffer[PCM_SIZE * 2];
+    short pcm_buffer[PCM_SIZE * 2];
     unsigned char mp3_buffer[MP3_SIZE];
 
-    std::string mp3_path(pcm_path);
+    std::string mp3_path(wav_path);
     mp3_path.replace(mp3_path.end() - PCM_EXT.length(), mp3_path.end(), MP3_EXT);
 
-    FILE *wav = fopen(pcm_path.c_str(), "rb");
-    FILE *mp3 = fopen(mp3_path.c_str(), "wb");
+    FILE *wav_file = std::fopen(wav_path.c_str(), "rb");
+    FILE *mp3_file = std::fopen(mp3_path.c_str(), "wb");
 
     lame_t lame = lame_init();
     lame_set_in_samplerate(lame, IN_SAMPLE_RATE);
@@ -115,27 +29,34 @@ bool convert(const std::string &pcm_path) {
     lame_set_VBR_q(lame, QUALITY_LEVEL);
 
     if (lame_init_params(lame) < 0) {
-        fclose(mp3);
-        fclose(wav);
+        fclose(mp3_file);
+        fclose(wav_file);
         return false;
     }
 
     int read, write;
 
     do {
-        read = fread(pcm_buffer, 2 * sizeof(short int), PCM_SIZE, wav);
+        read = fread(pcm_buffer, 2 * sizeof(short int), PCM_SIZE, wav_file);
         if (read == 0)
             write = lame_encode_flush(lame, mp3_buffer, MP3_SIZE);
         else
             write = lame_encode_buffer_interleaved(lame, pcm_buffer, read, mp3_buffer, MP3_SIZE);
-        fwrite(mp3_buffer, write, 1, mp3);
+        fwrite(mp3_buffer, write, 1, mp3_file);
     } while (read != 0);
 
     lame_close(lame);
-    fclose(mp3);
-    fclose(wav);
+    fclose(mp3_file);
+    fclose(wav_file);
     return true;
 }
+
+const char RIFF_MAGIC[4] = {'R', 'I', 'F', 'F'};
+const int FORMAT_OFFSET = 8;
+const char WAVE_FORMAT[4] = {'W', 'A', 'V', 'E'};
+const int AUDIO_FORMAT_OFFSET = 20;
+const short PCM_AUDIO_FORMAT = 1;
+
 
 int main(int argc, char *argv[]) {
     // Check the number of parameters
@@ -146,7 +67,7 @@ int main(int argc, char *argv[]) {
     }
     // Get directory from command line arguments
     char *directory = argv[1];
-    // Check if directory exist
+    // Check if directory exist and if it is a directory
     if (!fs::exists(directory) || !fs::is_directory(directory)) {
         // Notify directory does not exist
         std::cerr << "Not found directory '" << directory << "'" << std::endl;
@@ -159,22 +80,31 @@ int main(int argc, char *argv[]) {
             continue;
         }
         std::cout << it->path() << std::endl;
-        std::ifstream input(it->path(), std::ios::binary);
-        if (!input.is_open()) {
+        FILE *wav_file = fopen(it->path().c_str(), "rb");
+        if (!wav_file) {
             std::cerr << "Unable to open file " << it->path() << std::endl;
             continue;
         }
 
-        wav_header_t header{};
-        input.read((char *) (&header), sizeof(header));
-        input.close();
+        char magic[4];
+        char format[4];
+        short audio_format;
+
+        std::fread(magic, sizeof(char), 4, wav_file);
+        std::fseek(wav_file, FORMAT_OFFSET, SEEK_SET);
+        std::fread(format, sizeof(char), 4, wav_file);
+        std::fseek(wav_file, AUDIO_FORMAT_OFFSET, SEEK_SET);
+        std::fread(&audio_format, sizeof(audio_format), 1, wav_file);
+        std::fclose(wav_file);
+
         // Check if file format is correct
-        if (std::memcmp(header.riff_header, RIFF_CHUNK_ID, sizeof(header.riff_header)) != 0 ||
-            std::memcmp(header.wave_header, WAVE_FORMAT_ID, sizeof(header.wave_header)) != 0 ||
-            header.audio_format != WAVE_FORMAT_PCM) {
+        if (std::memcmp(magic, RIFF_MAGIC, sizeof(magic)) != 0 ||
+            std::memcmp(format, WAVE_FORMAT, sizeof(format)) != 0 ||
+            audio_format != PCM_AUDIO_FORMAT) {
             std::cerr << "No valid file format in file " << it->path() << std::endl;
             continue;
         }
+        // Convert WAV file to MP3
         convert(it->path());
     }
 
