@@ -1,10 +1,7 @@
 #include <iostream>
-#include <experimental/filesystem>
-#include <lame/lame.h>
 #include <cstring>
+#include <dirent.h>
 #include "Converter.h"
-
-namespace fs = std::experimental::filesystem;
 
 const char RIFF_MAGIC[4] = {'R', 'I', 'F', 'F'};
 const int FORMAT_OFFSET = 8;
@@ -14,32 +11,43 @@ const short PCM_AUDIO_FORMAT = 1;
 
 int main(int argc, char *argv[]) {
 
+    std::cout << argv[0] << std::endl;
+
     // Check the number of parameters
     if (argc != 2) {
         // Tell the user how to run the program
         std::cerr << "Usage: " << argv[0] << " <directory>" << std::endl;
         return 1;
     }
+
     // Get directory from command line arguments
     char *directory = argv[1];
+
     // Check if directory exist and if it is a directory
-    if (!fs::exists(directory) || !fs::is_directory(directory)) {
+    DIR* dir_ptr = opendir(directory);
+    if (dir_ptr == nullptr) {
         // Notify directory does not exist
         std::cerr << "Not found directory '" << directory << "'" << std::endl;
         return 2;
     }
 
+    // Create converter object
     Converter converter;
 
+    struct dirent * entry;
     // Iterate over all items in the directory
-    for (auto it = fs::directory_iterator(directory); it != fs::directory_iterator(); ++it) {
+    while ((entry = readdir(dir_ptr)) != nullptr) {
+        auto filename = entry->d_name;
         // Select only *.wav files to be processed
-        if (!fs::is_regular_file(it->path()) || strcasecmp(it->path().extension().c_str(), ".wav") != 0) {
+        if (strcasecmp(strrchr(filename, '.'), ".wav") != 0) {
             continue;
         }
-        FILE *wav_file = fopen(it->path().c_str(), "rb");
+
+        std::string file_path = std::string(directory) + "/" + std::string(filename);
+
+        FILE *wav_file = fopen(file_path.c_str(), "rb");
         if (!wav_file) {
-            std::cerr << "Unable to open file " << it->path() << std::endl;
+            std::cerr << "Unable to open file " << file_path << std::endl;
             continue;
         }
 
@@ -58,12 +66,14 @@ int main(int argc, char *argv[]) {
         if (std::memcmp(magic, RIFF_MAGIC, sizeof(magic)) != 0 ||
             std::memcmp(format, WAVE_FORMAT, sizeof(format)) != 0 ||
             audio_format != PCM_AUDIO_FORMAT) {
-            std::cerr << "No valid file format in file " << it->path() << std::endl;
+            std::cerr << "No valid file format in file " << file_path << std::endl;
             continue;
         }
         // Convert WAV file to MP3
-        converter.add_file(it->path().string());
+        converter.add_file(std::string(file_path));
     }
+
+    closedir(dir_ptr);
 
     converter.wait_for_finish();
 
