@@ -1,7 +1,7 @@
 # cinemo-test
 Write a C/C++ commandline application that encodes a set of WAV files to MP3
 
-##Requirements:
+## Requirements:
 
 1. application is called with pathname as argument, e.g.
 '''
@@ -15,3 +15,43 @@ Write a C/C++ commandline application that encodes a set of WAV files to MP3
 7. Multi-threading shall be implemented in a portable way, for example using POSIX pthreads.
 8. The Boost library shall not be used
 9. The LAME encoder should be used with reasonable standard settings (e.g. quality based encoding with quality level "good")
+
+## Compilation
+The executable will be deployed to the bin directory inside the project folder.
+
+### Debian/Ubuntu
+- Install needed tools to compile C/C++ CMake project
+'''
+$> sudo apt install cmake make gcc g++
+'''
+- Install development package for libmp3lame library
+'''
+$> sudo apt install libmp3lame-dev
+'''
+- Generate the binary file
+'''
+$> cd </path/to/project/directory>
+$> cmake CMakeLists.txt
+$> make
+$> make install
+'''
+
+### Windows with Cygwin
+- Install the latest version of Cygwin
+- Install package libmp3lame-dev on Cygwin GUI
+- Run Cygwin.bat from Cygwin home directory
+- Generate the binary file
+'''
+$> cd </path/to/project/directory>
+$> cmake CMakeLists.txt
+$> make
+$> make install
+'''
+
+## Execution
+'''
+$> </path/to/binary/file> </path/to/process/directory>
+'''
+
+
+
