@@ -3,11 +3,10 @@ Write a C/C++ commandline application that encodes a set of WAV files to MP3
 
 ## Requirements:
 
-1. application is called with pathname as argument, e.g.
+1. application is called with pathname, as argument all WAV-files contained directly in that folder are to be encoded to MP3, e.g.
 ```
 $> <application_name> F:\MyWavCollection
 ```
-all WAV-files contained directly in that folder are to be encoded to MP3
 2. Use all available CPU cores for the encoding process in an efficient way by utilizing multi-threading
 3. Statically link to lame encoder library
 4. Application should be compilable and runnable on Windows and Linux
