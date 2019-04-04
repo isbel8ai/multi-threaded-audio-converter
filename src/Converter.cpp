@@ -71,7 +71,7 @@ void Converter::convert(std::string &wav_path) {
     std::cout << "Converting file '" << wav_path << "'..." << std::endl;
 
     int read, write;
-
+    // Encoding process
     do {
         read = fread(pcm_buffer, 2 * sizeof(short int), PCM_SIZE, wav_file);
         if (read == 0)
@@ -87,7 +87,7 @@ void Converter::convert(std::string &wav_path) {
 }
 
 
-void Converter::add_file(const std::string& path) {
+void Converter::add_file(const std::string &path) {
     // lock file
     sem_wait(&files_mutex);
     files.push(std::string(path));
