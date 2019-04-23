@@ -1,4 +1,4 @@
-# cinemo-test
+# Multi-Threaded Audio Converter
 Write a C/C++ commandline application that encodes a set of WAV files to MP3
 
 ## Requirements:
